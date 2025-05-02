@@ -292,6 +292,7 @@ Windows 系统物理内存管理中有两个主要概念：“已提交 committe
 
 
 ### 细节
+![](media/17461888637071.jpg)
 
 - page fault：如果进程访问的虚拟内存不在进程工作集中，产生缺页中断
   - 软中断 （soft fault，minor page fault） ：在物理内存上直接分配并建立映射 
