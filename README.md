@@ -366,11 +366,13 @@ Windows 系统物理内存管理中有两个主要概念：“已提交 committe
 在Windows系统中可以清理进程工作集（EmptyWorkingSet）、清空已修改队列（Empty Modified List）来让可用物理内存看上去更多（备用属于可用一部分）。
 正如前文提到的，这个机制有一定的意义，比如在硬件差的设备应该尽量保存充足内存避免额外的性能消耗。比如某些进程内存泄漏占用大量物理内存，并不是一无是处。但是在其他一些场景反而会加剧换入换出，比如清理的内存后续马上使用。
 因此这个问题不能简单回答，这些工作理论上应该由操作系统更智能的自动完成，操作系统应该考虑各种场景下的内存管理，从而减少用户心智。
-macos 进程内存分配有对应 reserve & commit 概念吗
+
+## macos 进程内存分配有对应 reserve & commit 概念吗
 - macos 上没有等价reserve 概念：
   - 根本原因是mac上没有commit 概念，因此和windows上先申请虚拟内存，再提交两阶段不同，mac申请内存只有一个阶段
 - macos 上没有等价commit 概念：
   - unix 变体中通常是允许过度commit，即不存在Windows上的commit limit 限制，commit limit 限制本质上为了承诺进程确保需要的时候就能用，但是也可能会被滥用，比如进程大量commit 却不使用。
+
 ## windows 物理内存还剩余很多，为什么程序仍然 OOM 
 正如前文多次提到，Windows 存在commit limit 限制，并且存在commit 不分配内存机制
 ## 其他尚未讨论话题
