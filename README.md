@@ -1,7 +1,7 @@
 # 前言
 
 进程和系统的内存指标很多，不同工具（任务管理器/活动监视器...）中的指标定义并不明确，不同操作系统存在名称相似但含义差异很大的术语。
-本文抛砖引玉介绍现Windows & macOS 操作系统中的内存指标、概念，以便读者后续在使用软件分析、更进一步的内存文章阅读中有更清晰的认知。
+本文抛砖引玉介绍现有Windows & macOS 操作系统中的内存指标、概念，以便读者后续在使用软件分析、更进一步的内存文章阅读中有更清晰的认知。
 
 # 摘要
 
@@ -147,7 +147,7 @@
 
 > 工具：[vmmap](https://learn.microsoft.com/zh-cn/sysinternals/downloads/vmmap)、任务管理器、资源监视器、[Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer)、[Process Hacker](https://systeminformer.sourceforge.io/downloads)
 
-Windows 引入了“工作集”概念来表示进程虚拟地址空间映射的物理内存（不包含交换到磁盘部分即 page file）的大小
+Windows 引入了"工作集"概念来表示进程虚拟地址空间映射到物理内存（不包含交换到磁盘部分即 page file）的大小
 
 > 在 macOS 仍然被命名为进程的物理内存，在 Linux 上则使用“resident size” 驻留集术语。
 
@@ -181,7 +181,7 @@ Windows 上进程地址空间有“Reserve 保留”和“Commit 提交”两个
 
 ![](media/17461785845840.jpg)
 
-windows 进程指标分为工作集（总/共享/私有）和提交（私有/总）两部分，比较清晰，同时活动监视器指标和api接口返回值一致（而macOS上的dirty/clean的概念就相对复杂）
+Windows 进程指标分为工作集（总/共享/私有）和提交（私有/总）两部分，比较清晰，同时活动监视器指标和API接口返回值一致（而macOS上的dirty/clean的概念就相对复杂）
 
 - 已提交：可能未分配内存
 - 工作集：包含所有物理内存，不管是私有、共享、匿名还是文件映射
@@ -196,7 +196,7 @@ windows 进程指标分为工作集（总/共享/私有）和提交（私有/总
 
 macOS 在已有的“共享/私有”，“物理/交换”进程内存分类上，根据“是否可丢弃”增加一个新的维度：dirty/clean：
 
-- clean：这部分内容随时被++丢弃++后续再通过 page fault 重新读取文件
+- clean：这部分内容随时被丢弃后续再通过 page fault 重新读取文件
   - mmap 文件映射
   - malloc 申请但还未分配的内存
   - 代码文件中的__TEXT、__DATA_CONST 区域
@@ -262,7 +262,7 @@ macos上malloc 分配的内存是不可清理类型，与此相对应的有一�
 
 ### 工具
 
-排查内存的软件有 xcode / instruments，命令行有 vmmap / footprint / leaks / heap / malloc_histroy。开启**MallocStackLogging**之后，可以通过命令行工具看到heap地址空间对应的分配堆栈。
+排查内存的软件有 Xcode / Instruments，命令行有 vmmap / footprint / leaks / heap / malloc_history。开启**MallocStackLogging**之后，可以通过命令行工具看到heap地址空间对应的分配堆栈。
 
 ## 术语对比
 
@@ -281,7 +281,7 @@ macos上malloc 分配的内存是不可清理类型，与此相对应的有一�
 
 ## 一致性指标
 
-进程内存可以按照不同的维度进程分类，比如按照访问权限（私有/共享），所在位置（物理/交换），是否可丢弃（dirty/clean），是否提交（reseve/commit/free）等。
+进程内存可以按照不同的维度进行分类，比如按照访问权限（私有/共享），所在位置（物理/交换），是否可丢弃（dirty/clean），是否提交（reserve/commit/free）等。
 
 进程内存的值大小最理想的计算方式是**当进程被终止的时候，物理内存 和 page file 能释放的大小总和**。
 
