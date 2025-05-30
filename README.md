@@ -7,19 +7,19 @@
 
 ![](media/17461738418563.jpg)
 
-- **进程内存**：关注进程被终止的时候，物理内存 和 page file 能释放的大小总和
-  - Windows 上主要关注 privateBytes（私有提交）、privateWorkingSet（私有物理内存），macOS 关注 footprint
+- **进程内存**：
+  - Windows 上主要关注 privateBytes（私有提交）、privateWorkingSet（私有物理内存），macOS 主要关注 footprint
   - 可以按照地址空间位置（数据段/代码段/heap/内存映射/stack），访问权限（私有/共享），页面位置（物理/交换），进行分类
-  - Windows 上进程页面可按照提交状态（reserve / commtited / 工作集）分类
-  - macOS 上进程内存可按照是否可丢弃（dirty/clean）进行分类
-- **系统内存**：主要关注可用物理内存、总内存指标
+    - Windows 上进程页面可按照提交状态（reserved /committed）分类
+    - macOS 上进程内存可按照是否可丢弃（dirty/clean）进行分类
+- **系统内存**：主要关注可用内存、总内存指标
   - Windows ：
     - 可用物理内存分为“备用”&“空闲”两部分，已使用物理内存包含“活跃”&“已修改”两部分
     - 提交和提交上限
       - Windows上存在commit limit限制，即允许进程暂时不分配内存，但承诺commit部分一定能成功分配到内存
       - 因此 Windows 的 oom 一般触发时机是 commit 申请过程，而其它操作系统触发时机一般是对申请内存进行读写（此时才会真正的分配内存）过程中
   - macOS ：
-    - 可用物理内存（free）不包含“已缓存文件”，这部分内存可以在内存压力大的时候被移除，可折算入可用内存。
+    - 可用物理内存（free）不包含“已缓存文件”，这部分内存可以在内存压力大的时候被移除，可部分折算入可用内存。
     - 与 Linux 和 Windows 不同，OSX 不使用预先分配的磁盘分区作为后备存储。它使用机器引导分区上的所有可用空间
 - demo 仓库：https://github.com/ihewro/memory_demo
 
@@ -118,17 +118,17 @@
 
 - **私有文件映射（file-backed）	 #3**
     - macos/Linux：[mmap](https://man7.org/linux/man-pages/man2/mmap.2.html#DESCRIPTION)(PRIVATE, fd)
-    - Windows：CreateFileMapping， hFile 不为null 和 lpName 参数为null + MapViewOfFile，CreateFileMapping 中的hlProtect参数为PAGE_WRITECOPY 或者 MapViewOfFile 中的dwDesiredAccess 参数为FILE_MAP_COPY表示写时复制类型
+    - Windows：CreateFileMapping + MapViewOfFile，CreateFileMapping 中，hFile 不为null 和 lpName 参数为null；hlProtect参数为PAGE_WRITECOPY 或者 MapViewOfFile 中的dwDesiredAccess 参数为FILE_MAP_COPY表示写时复制类型
 
 
 - **共享文件映射	#4**
     - macos/linux：[mmap](https://man7.org/linux/man-pages/man2/mmap.2.html#DESCRIPTION)(SHARED, fd)
     - Windows：CreateFileMapping+MapViewOfFile
-    - 可执行文件 ：Image（FrameWorks）：可执行文件（TEXT/READONLY_DATA/...）
 
 
-> Windows上申请内存有两套方式，其中VirtualAlloc偏向对虚拟地址纬度的操作，而CreateFileMapping+MapViewOfFile
-的组合偏向于文件映射和将文件映射对象映射到虚拟地址空间里，尽管后者一定程度部分包含了前者的功能，但是VirtualAlloc支持reserve / commit 细粒度的申请虚拟地址空间
+
+> Windows上申请内存有两套方式，其中VirtualAlloc偏向对虚拟地址维度的操作，而CreateFileMapping+MapViewOfFile
+的组合偏向于文件映射和将文件映射对象映射到进程的虚拟地址空间里，尽管后者一定程度部分包含了前者的功能，但是VirtualAlloc支持reserved / commit 细粒度的申请虚拟地址空间
 
 ### 按照页面映射位置分类
 
@@ -210,8 +210,8 @@ macOS 在已有的“共享/私有”，“物理/交换”进程内存分类上
    * internal（匿名内存） 
    * \+ internal_compressed（匿名内存被压缩或者被交换） 
    * \+ iokit_mapped（IOKit持有的内存，一般和设备访问、图像处理等有关，和文件映射不是一个概念） 
-   * \- alternate_accounting（iokit_mappiing 中dirty 部分）
-   * \- alternate_accounting_compressed（iokit_mappiing 中dirty 且被压缩或被交换的部分）
+   * \- alternate_accounting（iokit_mapping 中dirty 部分）
+   * \- alternate_accounting_compressed（iokit_mapping 中dirty 且被压缩或被交换的部分）
    * \+ purgeable_nonvolatile（可清理且非易失内存物理内存） 
    * \+ purgeable_nonvolatile_compressed（可清理且非易失内存被压缩或被交换）
    * \+ page_table
@@ -283,9 +283,10 @@ macos上malloc 分配的内存是不可清理类型，与此相对应的有一�
 
 进程内存可以按照不同的维度进程分类，比如按照访问权限（私有/共享），所在位置（物理/交换），是否可丢弃（dirty/clean），是否提交（reseve/commit/free）等。
 
-真正关心的进程内存大小是**当进程被终止的时候，物理内存 和 page file 能释放的大小总和**。
+进程内存的值大小最理想的计算方式是**当进程被终止的时候，物理内存 和 page file 能释放的大小总和**。
 
 chromium 提出了[统一内存指标](https://docs.google.com/document/d/1_WmgE1F5WUrhwkPqJis3dWyOiUmQKvpXp5cd4w86TvA/edit?tab=t.0#heading=h.72p7m75zec96) 的方案，即用来衡量一个进程的内存占用情况是**私有内存**。
+
 它的定义是：私有的 & 匿名（非文件映射）& 不可丢弃、存在物理内存上或者磁盘上或者被压缩。该指标即私有的 footprint 指标。
 
 各个操作系统中没有直接提供一个 API 来告知一个进程的非共享的内存（物理+page file）是多少，即使拿到所有regions的信息后根据页面权限计算（性能会差一些），共享的部分也无法准确知道自己进程使用的那部分，并且进程在磁盘上的占用大小没有接口获取到。
@@ -369,7 +370,7 @@ Windows 系统物理内存管理中有两个主要概念：“已提交（commit
   - App 内存：用户程序使用的物理内存
   - 联动内存：系统内核使用的内存，类似 Windows 上的非分页内存，不可被换出到磁盘上
   - 被压缩：压缩后的大小
-- **已缓存文件**: 文件映射内存大小 + 可清理 puregeable 内存大小
+- **已缓存文件**: 文件映射内存大小 + 可清理 purgeable 内存大小
   - 注意⚠️：这部分一定程度可以被视作“可用物理内存”，尽管它没有包含在 host_statistics64 接口中 free 字段中。这也是为什么 macOS 上可用物理内存尽管很低，但是内存压力指示仍然是绿色的原因之一。
 - **已使用的交换**: 交换空间占据的磁盘大小
   - 注意⚠️：macOS 上没有预先设定 page file 的大小，而是启动磁盘的所有剩余空间都可以用于交换空间
@@ -398,7 +399,7 @@ Windows 系统物理内存管理中有两个主要概念：“已提交（commit
 
 ![](media/17461783292052.jpg)
 
-这两者的“已缓存”是不同纬度的定义，macOS上是从clean角度定义，主要包含是进程的clean类型的内存和一些内存缓存（不属于进程了）。而Windows上从工作集是否属于进程来定义的，Windows上已缓存已经从工作集中移除了。在内容上有一部分交叉。
+这两者的“已缓存”是不同维度的定义，macOS上是从clean角度定义，主要包含是进程的clean类型的内存和一些内存缓存（不属于进程了）。而Windows上从工作集是否属于进程来定义的，Windows上已缓存已经从工作集中移除了。在内容上有一部分交叉。
 
 
 # Q&A
@@ -440,5 +441,3 @@ Windows 系统物理内存管理中有两个主要概念：“已提交（commit
 # 参考链接
 
 - [统一内存指标](https://docs.google.com/document/d/1_WmgE1F5WUrhwkPqJis3dWyOiUmQKvpXp5cd4w86TvA/edit?tab=t.0#heading=h.72p7m75zec96)
-
-
